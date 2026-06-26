@@ -78,7 +78,6 @@ def training_sweeps(model,train_data,val_data,block_size,batch_size,device,max_s
             losses=estimate_loss(model,train_data,val_data,block_size,batch_size,device)
             if losses['val'] < best_val_loss:
                 best_val_loss=losses['val']
-    print(f"Best Validation Loss (L): {best_val_loss}")
     return best_val_loss
 
 if __name__== "__main__":
@@ -91,6 +90,7 @@ if __name__== "__main__":
         "Medium": {"n_layers": 6, "n_embedding": 256, "n_heads": 8, "block_size": 256}
     }
     
+    #parameter scaling sweep
     scaling_results = {}
     for name , config in sweep_configs.items():
         model=DecoderTransformer(vocab_size=vocab_size,
@@ -111,11 +111,11 @@ if __name__== "__main__":
             max_steps=3000
         )
         scaling_results[name] = {"N": n_params, "L": best_loss}
-        
-        for model_name, metrics in scaling_results.items():
-            print(f"{model_name} | Parameters (N): {metrics['N']} | Best Val Loss (L): {metrics['L']}")
+    print("\nFINAL PARAMETER SCALING RESULTS:")  
+    for model_name, metrics in scaling_results.items():
+        print(f"{model_name} | Parameters (N): {metrics['N']} | Best Val Loss (L): {metrics['L']}")
             
-            
+    # data scaling sweep      
     data_fractions=[0.10,0.25,0.50,1.00]
     data_scaling_result={}
     small_config=sweep_configs['Small']
@@ -136,5 +136,6 @@ if __name__== "__main__":
                                   device=device,
                                   max_steps=3000)
         data_scaling_result[f'{int(frac*100)}%']={'D':subset_size,'L':best_loss}
-        for name, metrics in data_scaling_result.items():
-            print(f"{name} | D: {metrics['D']} | Best L: {metrics['L']}")
+    print("\nFINAL DATA SCALING RESULTS:")
+    for name, metrics in data_scaling_result.items():
+        print(f"{name} | D: {metrics['D']} | Best L: {metrics['L']}")
