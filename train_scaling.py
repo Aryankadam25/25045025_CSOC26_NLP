@@ -91,7 +91,7 @@ if __name__== "__main__":
     }
     
     #parameter scaling sweep
-    scaling_results = {}
+    param_scaling_results = {}
     for name , config in sweep_configs.items():
         model=DecoderTransformer(vocab_size=vocab_size,
                                 n_embedding=config["n_embedding"],
@@ -110,9 +110,9 @@ if __name__== "__main__":
             device=device,
             max_steps=3000
         )
-        scaling_results[name] = {"N": n_params, "L": best_loss}
+        param_scaling_results[name] = {"N": n_params, "L": best_loss}
     print("\nFINAL PARAMETER SCALING RESULTS:")  
-    for model_name, metrics in scaling_results.items():
+    for model_name, metrics in param_scaling_results.items():
         print(f"{model_name} | Parameters (N): {metrics['N']} | Best Val Loss (L): {metrics['L']}")
             
     # data scaling sweep      
@@ -138,4 +138,13 @@ if __name__== "__main__":
         data_scaling_result[f'{int(frac*100)}%']={'D':subset_size,'L':best_loss}
     print("\nFINAL DATA SCALING RESULTS:")
     for name, metrics in data_scaling_result.items():
-        print(f"{name} | D: {metrics['D']} | Best L: {metrics['L']}")
+        print(f"{name} | Dataset_size: {metrics['D']} | Best L: {metrics['L']}")
+        
+import json
+final_output={
+    "parameter_scaling":param_scaling_results,
+    "data_scaling":data_scaling_result
+}
+with open("scaling_results.json","w") as f:
+    json.dump(final_output,f,indent=4)
+    
