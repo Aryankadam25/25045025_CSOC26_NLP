@@ -105,3 +105,65 @@ class DecoderTransformer(nn.Module):
         logits=self.lm_head(X) #(B,T,vocab_size)
         return logits
     
+# Testing   
+if __name__ == "__main__":
+    B,T,C=4,32,64
+    vocab_size=100
+    model = DecoderTransformer(vocab_size=vocab_size,
+                                   n_embedding=C,
+                                   n_heads=4,
+                                   block_size=T,
+                                   dropout=0.0,
+                                   n_layers=3)
+    x = torch.randint(0, vocab_size, (B, T))
+    pos = torch.arange(0, T, dtype=torch.long)
+    tok_emb = model.token_embedding(x)
+    pos_emb = model.positional_embedding(pos)
+    current_x = tok_emb + pos_emb
+    assert current_x.shape == (B, T, C), " Embedding dimension mismatch!"
+    
+    # verifying every transformer block
+    for i , block in enumerate(model.block):
+        current_x = block(current_x)
+        assert current_x.shape == (B, T, C), f" Dimension mismatch at Block {i}!"
+        
+    # Verify Final LayerNorm and Output Head
+    current_x = model.ln(current_x)
+    logits = model.lm_head(current_x)
+    assert logits.shape == (B, T, vocab_size), "Final output (lm_head) dimension mismatch!"
+    
+    # Testing Causal Compliance (No future leakage)
+    x_embed = torch.randn(1, 10, C, requires_grad=True)
+    out = x_embed
+    for block in model.block:
+        out = block(out)
+    loss = out[0, 5, :].sum()# Take gradient of the 5th token
+    loss.backward()
+    
+    assert torch.all(x_embed.grad[0, 6:, :] == 0), "Causal Leak Detected! Future tokens affecting past/present."
+    
+    #Testing Single Batch Overfitting to ZERO loss
+    model_overfit = DecoderTransformer(vocab_size=vocab_size,
+                                       n_embedding=C,
+                                       n_heads=4,
+                                       block_size=16,
+                                       dropout=0.0,
+                                       n_layers=2)
+    optimizer = torch.optim.AdamW(model_overfit.parameters(), lr=0.01)
+    x_batch = torch.randint(0, vocab_size, (1, 16))
+    y_batch = torch.randint(0, vocab_size, (1, 16))
+    loss_val = float('inf')
+    step = 0
+    while loss_val > 5e-4 and step < 500:
+        logits = model_overfit(x_batch)
+        loss = F.cross_entropy(logits.view(-1, vocab_size), y_batch.view(-1))
+        
+        optimizer.zero_grad(set_to_none=True)
+        loss.backward()
+        optimizer.step()
+        
+        loss_val = loss.item()
+        step += 1
+        
+    assert loss_val <= 5e-4, f"Failed to overfit. Final loss stuck at: {loss_val}"
+    print("no errors")

@@ -83,7 +83,7 @@ def training_sweeps(model,train_data,val_data,block_size,batch_size,device,max_s
 if __name__== "__main__":
     device="cuda" if torch.cuda.is_available() else "cpu"
     train_data, val_data, vocab_size = prepare_data()
-    batch_size=64
+    batch_size=6
     sweep_configs = {
         "Tiny":   {"n_layers": 2, "n_embedding": 64,  "n_heads": 2, "block_size": 128},
         "Small":  {"n_layers": 4, "n_embedding": 128, "n_heads": 4, "block_size": 256},
